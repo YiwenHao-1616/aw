@@ -3,17 +3,17 @@ name: 每日订单同步
 on:
   schedule:
     # 北京时间 10:00, 12:00, 12:30, 13:00, 14:00, 15:00, 16:00, 17:00, 18:00, 18:30
-    - cron: '0 2 * * *'    # 10:00
-    - cron: '0 4 * * *'    # 12:00
-    - cron: '30 4 * * *'   # 12:30
-    - cron: '0 5 * * *'    # 13:00
-    - cron: '0 6 * * *'    # 14:00
-    - cron: '0 7 * * *'    # 15:00
-    - cron: '0 8 * * *'    # 16:00
-    - cron: '0 9 * * *'    # 17:00
-    - cron: '0 10 * * *'   # 18:00
-    - cron: '30 10 * * *'  # 18:30
-  workflow_dispatch: {}  # 保留手动触发，方便测试
+    - cron: '0 2 * * *'
+    - cron: '0 4 * * *'
+    - cron: '30 4 * * *'
+    - cron: '0 5 * * *'
+    - cron: '0 6 * * *'
+    - cron: '0 7 * * *'
+    - cron: '0 8 * * *'
+    - cron: '0 9 * * *'
+    - cron: '0 10 * * *'
+    - cron: '30 10 * * *'
+  workflow_dispatch: {}
 
 jobs:
   crawl-and-sync:
@@ -26,7 +26,7 @@ jobs:
           python-version: '3.11'
       - name: 安装依赖
         run: |
-          pip install DrissionPage requests
+          pip install DrissionPage beautifulsoup4 requests
       - name: 运行 spider2 抓取 huisi
         env:
           CRAWL_USER: ${{ secrets.CRAWL_USER }}
