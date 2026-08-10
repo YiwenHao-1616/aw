@@ -1,10 +1,9 @@
-name: 每日订单同步
+name: 每日订单同步(huisi)
 
 on:
   schedule:
-    # 每天 03:00 UTC（= 北京时间 11:00）。改时间改这里
-    - cron: '0 3 * * *'
-  workflow_dispatch: {}  # 允许手动触发，测试必用
+    - cron: '0 3 * * *'   # 每天 03:00 UTC（北京 11:00）
+  workflow_dispatch: {}
 
 jobs:
   crawl-and-sync:
@@ -17,16 +16,17 @@ jobs:
         with:
           python-version: '3.11'
 
+      # 【关键修改1】装 DrissionPage + bs4 + requests，不再装 playwright
       - name: 安装依赖
         run: |
-          pip install playwright requests
-          playwright install --with-deps chromium
+          pip install DrissionPage beautifulsoup4 requests
+          # ubuntu-latest 自带 google-chrome-stable，确认存在
+          which google-chrome-stable || sudo apt-get update && sudo apt-get install -y google-chrome-stable
 
-      - name: 运行 spider2 抓取
+      # 【关键】设置 CI 环境变量，让 spider2 自动启用无头模式
+      - name: 运行 spider2 抓取 huisi
         env:
-          CRAWL_USER: ${{ secrets.CRAWL_USER }}
-          CRAWL_PASS: ${{ secrets.CRAWL_PASS }}
-        # 你的 spider2.py 需输出 result_huisi.txt 和 result_jiahui.txt
+          CI: 'true'
         run: python spider2.py
 
       - name: 推送 huisi 到秒哒
@@ -34,9 +34,3 @@ jobs:
           EDGE_URL: ${{ secrets.SUPABASE_EDGE_URL }}
           SYNC_KEY: ${{ secrets.SYNC_KEY }}
         run: python push_to_miaoda.py result_huisi.txt huisi "$EDGE_URL" "$SYNC_KEY"
-
-      - name: 推送 jiahui 到秒哒
-        env:
-          EDGE_URL: ${{ secrets.SUPABASE_EDGE_URL }}
-          SYNC_KEY: ${{ secrets.SYNC_KEY }}
-        run: python push_to_miaoda.py result_jiahui.txt jiahui "$EDGE_URL" "$SYNC_KEY"
