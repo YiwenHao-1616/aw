@@ -1,56 +1,41 @@
 name: 每日订单同步
 
 on:
-  # 定时触发：每天 03:00 UTC（= 北京时间 11:00）
-  # 想换时间改 cron 表达式即可
   schedule:
+    # 每天 03:00 UTC（= 北京时间 11:00）。想改时间改这里
     - cron: '0 3 * * *'
-  # 允许手动触发（测试用，必加）
-  workflow_dispatch:
-    inputs:
-      debug:
-        description: '调试模式（打印更多日志）'
-        required: false
-        type: boolean
-        default: false
+  workflow_dispatch: {}  # 允许手动触发，测试必用
 
 jobs:
   crawl-and-sync:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      # 第1步：检出你的仓库代码
-      - name: 检出代码
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # 第2步：装 Python
-      - name: 安装 Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # 第3步：装依赖（Playwright + requests）
       - name: 安装依赖
         run: |
           pip install playwright requests
           playwright install --with-deps chromium
 
-      # 第4步：跑你的抓取脚本（替换 crawl_orders.py 为你的文件名）
       - name: 抓取订单
         env:
           CRAWL_USER: ${{ secrets.CRAWL_USER }}
           CRAWL_PASS: ${{ secrets.CRAWL_PASS }}
         run: python crawl_orders.py
+        # 你的脚本需输出 result_huisi.json 和 result_jiahui.json
 
-      # 第5步：推送 huisi 数据到秒哒
-      - name: 推送 huisi
+      - name: 推送 huisi 到秒哒
         env:
           EDGE_URL: ${{ secrets.SUPABASE_EDGE_URL }}
           SYNC_KEY: ${{ secrets.SYNC_KEY }}
         run: python push_to_miaoda.py result_huisi.json huisi "$EDGE_URL" "$SYNC_KEY"
 
-      # 第6步：推送 jiahui 数据到秒哒
-      - name: 推送 jiahui
+      - name: 推送 jiahui 到秒哒
         env:
           EDGE_URL: ${{ secrets.SUPABASE_EDGE_URL }}
           SYNC_KEY: ${{ secrets.SYNC_KEY }}
