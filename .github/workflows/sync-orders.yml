@@ -1,9 +1,19 @@
-name: 每日订单同步(huisi)
+name: 每日订单同步
 
 on:
   schedule:
-    - cron: '0 3 * * *'   # 每天 03:00 UTC（北京 11:00）
-  workflow_dispatch: {}
+    # 北京时间 10:00, 12:00, 12:30, 13:00, 14:00, 15:00, 16:00, 17:00, 18:00, 18:30
+    - cron: '0 2 * * *'    # 10:00
+    - cron: '0 4 * * *'    # 12:00
+    - cron: '30 4 * * *'   # 12:30
+    - cron: '0 5 * * *'    # 13:00
+    - cron: '0 6 * * *'    # 14:00
+    - cron: '0 7 * * *'    # 15:00
+    - cron: '0 8 * * *'    # 16:00
+    - cron: '0 9 * * *'    # 17:00
+    - cron: '0 10 * * *'   # 18:00
+    - cron: '30 10 * * *'  # 18:30
+  workflow_dispatch: {}  # 保留手动触发，方便测试
 
 jobs:
   crawl-and-sync:
@@ -11,24 +21,17 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      # 【关键修改1】装 DrissionPage + bs4 + requests，不再装 playwright
       - name: 安装依赖
         run: |
-          pip install DrissionPage beautifulsoup4 requests
-          # ubuntu-latest 自带 google-chrome-stable，确认存在
-          which google-chrome-stable || sudo apt-get update && sudo apt-get install -y google-chrome-stable
-
-      # 【关键】设置 CI 环境变量，让 spider2 自动启用无头模式
+          pip install DrissionPage requests
       - name: 运行 spider2 抓取 huisi
         env:
-          CI: 'true'
+          CRAWL_USER: ${{ secrets.CRAWL_USER }}
+          CRAWL_PASS: ${{ secrets.CRAWL_PASS }}
         run: python spider2.py
-
       - name: 推送 huisi 到秒哒
         env:
           EDGE_URL: ${{ secrets.SUPABASE_EDGE_URL }}
