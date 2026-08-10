@@ -1,0 +1,64 @@
+name: 每日订单同步
+on:
+  schedule:
+    # 每天 03:00 UTC（北京时间 11:00）；可按需调整
+    - cron: '0 3 * * *'
+  workflow_dispatch: {}  # 允许手动触发，便于测试
+
+jobs:
+  crawl-and-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: |
+          pip install playwright requests
+          playwright install --with-deps chromium
+
+      - name: 抓取订单（替换为你的脚本）
+        env:
+          TARGET_USER: ${{ secrets.CRAWL_USER }}      # 目标网站账密（如需登录）
+          TARGET_PASS: ${{ secrets.CRAWL_PASS }}
+        run: python crawl_orders.py                   # 输出 result_huisi.json / result_jiahui.json
+
+      - name: 推送 huisi 到秒哒
+        env:
+          EDGE_URL: ${{ secrets.SUPABASE_EDGE_URL }}  # https://xxx.functions.supabase.co/process-synced-orders
+          SYNC_KEY: ${{ secrets.SYNC_KEY }}
+        run: |
+          python push_to_miaoda.py result_huisi.json huisi "$EDGE_URL" "$SYNC_KEY"
+
+      - name: 推送 jiahui 到秒哒
+        env:
+          EDGE_URL: ${{ secrets.SUPABASE_EDGE_URL }}
+          SYNC_KEY: ${{ secrets.SYNC_KEY }}
+        run: |
+          python push_to_miaoda.py result_jiahui.json jiahui "$EDGE_URL" "$SYNC_KEY"
+push_to_miaoda.py 关键逻辑（你按实际结构调整）：
+
+import json, sys, requests
+
+result_file, source, edge_url, sync_key = sys.argv[1:5]
+with open(result_file, 'r', encoding='utf-8') as f:
+    orders = json.load(f)  # 你的脚本输出的列表
+
+payload = {
+    "source": source,
+    "date": __import__('datetime').date.today().isoformat(),
+    "total_extracted": len(orders),
+    "orders": orders,
+}
+resp = requests.post(
+    edge_url,
+    json=payload,
+    headers={"x-sync-key": sync_key, "Content-Type": "application/json"},
+    timeout=120,
+)
+print(f"[{source}] HTTP {resp.status_code}: {resp.text}")
+resp.raise_for_status()
